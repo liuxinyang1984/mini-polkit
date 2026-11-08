@@ -1,0 +1,32 @@
+#!/bin/sh
+# 按 ~/.config/mini-polkit/prompt（或 POLKIT_PROMPT）启动 mini-polkit
+# 值: dmenu（默认）| rofi
+set -e
+PROMPT="${POLKIT_PROMPT:-}"
+if [ -z "$PROMPT" ]; then
+	cfg="${XDG_CONFIG_HOME:-$HOME/.config}/mini-polkit/prompt"
+	if [ -f "$cfg" ]; then
+		PROMPT=$(tr -d '[:space:]' <"$cfg")
+	fi
+fi
+PROMPT="${PROMPT:-dmenu}"
+
+if ! command -v mini-polkit >/dev/null 2>&1; then
+	echo "mini-polkit-agent: 未找到 mini-polkit" >&2
+	exit 1
+fi
+
+dmenu_cmd='dmenu -P -c -bw 2 -p Password:'
+
+case "$PROMPT" in
+rofi|rofi-askpass)
+	if command -v rofi-askpass >/dev/null 2>&1; then
+		exec mini-polkit "rofi-askpass '{{MESSAGE}}'"
+	fi
+	echo "mini-polkit-agent: 已选 rofi 但无 rofi-askpass，回退 dmenu" >&2
+	exec mini-polkit "$dmenu_cmd"
+	;;
+dmenu|*)
+	exec mini-polkit "$dmenu_cmd"
+	;;
+esac
